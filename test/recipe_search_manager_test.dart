@@ -11,8 +11,8 @@ class _FakeRecipeServiceSuccess implements RecipeServiceInterface {
   Future<QueryResult<SpoonacularModelResponse>> searchRecipes(
     RecipeSearchRequest request,
   ) async {
-    return QueryResult.success(
-      const SpoonacularModelResponse(
+    return const QueryResult.success(
+      SpoonacularModelResponse(
         results: [
           SpoonacularRecipe(
             id: 1,

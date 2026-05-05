@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 
 import '../components/components.dart';
 import '../constants.dart';
+import '../local/fleet_notes_database.dart';
+import '../local/fleet_notes_repository.dart';
 import '../models/models.dart';
 import 'checkout_page.dart';
 
@@ -26,6 +28,7 @@ class _RestaurantPageState extends State<RestaurantPage> {
   static const double largeScreenPercentage = 0.9;
   static const double maxWidth = 1000;
   static const desktopThreshold = 700;
+  final TextEditingController _noteController = TextEditingController();
 
   String get _heroTag => 'vehicle-image-${widget.restaurant.id}';
 
@@ -46,6 +49,7 @@ class _RestaurantPageState extends State<RestaurantPage> {
         _buildSliverAppBar(),
         _buildInfoSection(),
         _buildGridViewSection('Trip add-ons'),
+        _buildLocalNotesSection(),
       ],
     );
   }
@@ -177,6 +181,81 @@ class _RestaurantPageState extends State<RestaurantPage> {
     );
   }
 
+  SliverToBoxAdapter _buildLocalNotesSection() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Local Fleet Notes',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _noteController,
+                  decoration: const InputDecoration(
+                    hintText: 'Save a note about this vehicle',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: () async {
+                    final note = _noteController.text.trim();
+                    if (note.isEmpty) return;
+                    await FleetNotesRepository.instance.addNote(
+                      vehicleId: widget.restaurant.id,
+                      vehicleName: widget.restaurant.name,
+                      note: note,
+                    );
+                    _noteController.clear();
+                  },
+                  icon: const Icon(Icons.save_outlined),
+                  label: const Text('Save Note'),
+                ),
+                const SizedBox(height: 8),
+                StreamBuilder<List<FleetNote>>(
+                  stream: FleetNotesRepository.instance.watchNotes(),
+                  builder: (context, snapshot) {
+                    final notes = snapshot.data ?? const [];
+                    final filtered = notes
+                        .where((note) => note.vehicleId == widget.restaurant.id)
+                        .take(5)
+                        .toList();
+                    if (filtered.isEmpty) {
+                      return const Text('No local notes yet for this vehicle.');
+                    }
+                    return Column(
+                      children: filtered
+                          .map(
+                            (note) => ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(note.note),
+                              subtitle: Text(note.createdAt.toIso8601String()),
+                              trailing: IconButton(
+                                onPressed: () => FleetNotesRepository.instance
+                                    .deleteNote(note.id),
+                                icon: const Icon(Icons.delete_outline),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showBottomSheet(Item item) {
     showModalBottomSheet<void>(
       isScrollControlled: true,
@@ -263,6 +342,12 @@ class _RestaurantPageState extends State<RestaurantPage> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
   }
 }
 

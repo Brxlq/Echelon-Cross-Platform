@@ -8,11 +8,13 @@ class AccountPage extends StatefulWidget {
   const AccountPage({
     super.key,
     required this.onLogOut,
+    required this.onOpenSupportChat,
     required this.user,
   });
 
   final User user;
   final LogoutCallback onLogOut;
+  final VoidCallback onOpenSupportChat;
 
   @override
   AccountPageState createState() => AccountPageState();
@@ -81,10 +83,11 @@ class AccountPageState extends State<AccountPage> {
           title: Text('Billing and passes'),
           subtitle: Text('Manage payment methods and trip credits'),
         ),
-        const ListTile(
-          leading: Icon(Icons.support_agent),
-          title: Text('Support'),
-          subtitle: Text('Roadside help, damage reporting, and FAQs'),
+        ListTile(
+          leading: const Icon(Icons.support_agent),
+          title: const Text('Support'),
+          subtitle: const Text('Roadside help, damage reporting, and FAQs'),
+          onTap: widget.onOpenSupportChat,
         ),
         ListTile(
           leading: const Icon(Icons.logout),

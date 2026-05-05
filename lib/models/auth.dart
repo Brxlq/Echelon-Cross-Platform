@@ -1,33 +1,66 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/widgets.dart';
 
 import 'app_cache.dart';
 
 /// A mock authentication service.
 class YummyAuth extends ChangeNotifier {
-  bool _loggedIn = false;
+  YummyAuth({FirebaseAuth? firebaseAuth})
+      : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
+
+  final FirebaseAuth _firebaseAuth;
 
   // Stores user state properties on platform specific file system.
   final _appCache = AppCache();
 
-  Future<bool> get loggedIn => _appCache.isUserLoggedIn();
+  Future<bool> get loggedIn async {
+    if (_firebaseAuth.currentUser != null) {
+      return true;
+    }
+    return _appCache.isUserLoggedIn();
+  }
 
   /// Signs out the current user.
   Future<void> signOut() async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    // Sign out.
-    _loggedIn = false;
+    await _firebaseAuth.signOut();
     await _appCache.invalidate();
     notifyListeners();
   }
 
   /// Signs in a user.
-  Future<bool> signIn(String username, String password) async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+  Future<bool> signIn(String email, String password) async {
+    final normalizedEmail = email.trim();
+    if (normalizedEmail.isEmpty || password.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'invalid-credential',
+        message: 'Email and password are required.',
+      );
+    }
 
-    // Sign in. Allow any password.
-    _loggedIn = true;
+    await _firebaseAuth.signInWithEmailAndPassword(
+      email: normalizedEmail,
+      password: password,
+    );
     await _appCache.cacheUser();
     notifyListeners();
-    return _loggedIn;
+    return true;
+  }
+
+  Future<bool> signUp(String email, String password) async {
+    final normalizedEmail = email.trim();
+    if (normalizedEmail.isEmpty || password.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'invalid-credential',
+        message: 'Email and password are required.',
+      );
+    }
+
+    await _firebaseAuth.createUserWithEmailAndPassword(
+      email: normalizedEmail,
+      password: password,
+    );
+    await _appCache.cacheUser();
+    notifyListeners();
+    return true;
   }
 }

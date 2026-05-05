@@ -1,79 +1,111 @@
-# Echelon Database ERD
-erDiagram
-    USERS {
-        int user_id PK
-        string first_name
-        string last_name
-        string role
-        string profile_image_url
-        int points
-        bool dark_mode
-    }
+# Echelon App ERD - Chen Notation
 
-    VEHICLE_CLASSES {
-        int class_id PK
-        string name
-        string image_url
-    }
+```mermaid
+flowchart LR
+    %% Entities
+    USER[USER]
+    VEHICLE_CLASS[VEHICLE_CLASS]
+    VEHICLE[VEHICLE]
+    ADD_ON[ADD_ON]
+    ORDER[ORDER]
+    ORDER_ADD_ON[ORDER_ADD_ON]
+    POST[POST]
 
-    VEHICLES {
-        int vehicle_id PK
-        int class_id FK
-        string name
-        string address
-        string attributes
-        string image_url
-        string image_credits
-        decimal distance_km
-        decimal rating
-        decimal hourly_rate
-    }
+    %% Relationships
+    PLACES{PLACES}
+    BOOKS{BOOKS}
+    CATEGORIZES{CATEGORIZES}
+    OFFERS{OFFERS}
+    CONTAINS{CONTAINS}
+    SELECTS{SELECTS}
+    WRITES{WRITES}
 
-    ADD_ONS {
-        int add_on_id PK
-        int vehicle_id FK
-        string name
-        string description
-        decimal price
-        string image_url
-    }
+    %% Main horizontal ERD
+    USER ---|1| PLACES
+    PLACES ---|0..N| ORDER
+    ORDER ---|0..N| CONTAINS
+    CONTAINS ---|1| ORDER_ADD_ON
+    ORDER_ADD_ON ---|1| SELECTS
+    SELECTS ---|1| ADD_ON
+    ADD_ON ---|0..N| OFFERS
+    OFFERS ---|1| VEHICLE
+    VEHICLE ---|0..N| CATEGORIZES
+    CATEGORIZES ---|1| VEHICLE_CLASS
 
-    ORDERS {
-        int order_id PK
-        int user_id FK
-        int vehicle_id FK
-        string driver_name
-        date pickup_date
-        time pickup_time
-        string trip_type
-        string rental_unit
-        int rental_length
-        decimal base_rate
-        decimal discount_amount
-        string discount_code
-        datetime created_at
-    }
+    VEHICLE ---|1| BOOKS
+    BOOKS ---|0..N| ORDER
 
-    ORDER_ADD_ONS {
-        int order_add_on_id PK
-        int order_id FK
-        int add_on_id FK
-        int quantity
-        decimal unit_price
-    }
+    USER ---|1| WRITES
+    WRITES ---|0..N| POST
 
-    POSTS {
-        int post_id PK
-        int user_id FK
-        string profile_image_url
-        string comment
-        string timestamp_label
-    }
+    %% USER attributes
+    user_id(("<u>user_id</u>"))
+    user_name((name))
+    user_role((role))
 
-    USERS ||--o{ ORDERS : places
-    VEHICLE_CLASSES ||--o{ VEHICLES : categorizes
-    VEHICLES ||--o{ ADD_ONS : offers
-    VEHICLES ||--o{ ORDERS : booked_in
-    ORDERS ||--o{ ORDER_ADD_ONS : contains
-    ADD_ONS ||--o{ ORDER_ADD_ONS : selected_as
-    USERS ||--o{ POSTS : writes
+    user_id --- USER
+    user_name --- USER
+    user_role --- USER
+
+    %% VEHICLE_CLASS attributes
+    class_name(("<u>name</u>"))
+    class_image((image_url))
+
+    class_name --- VEHICLE_CLASS
+    class_image --- VEHICLE_CLASS
+
+    %% VEHICLE attributes
+    vehicle_id(("<u>vehicle_id</u>"))
+    vehicle_name((name))
+    vehicle_address((address))
+    hourly_rate((hourly_rate))
+
+    vehicle_id --- VEHICLE
+    vehicle_name --- VEHICLE
+    vehicle_address --- VEHICLE
+    hourly_rate --- VEHICLE
+
+    %% ADD_ON attributes
+    add_on_id(("<u>add_on_id</u>"))
+    add_on_name((name))
+    add_on_price((price))
+
+    add_on_id --- ADD_ON
+    add_on_name --- ADD_ON
+    add_on_price --- ADD_ON
+
+    %% ORDER attributes
+    order_id(("<u>order_id</u>"))
+    driver_name((driver_name))
+    pickup_date((pickup_date))
+    rental_length((rental_length))
+    total_cost((total_cost))
+
+    order_id --- ORDER
+    driver_name --- ORDER
+    pickup_date --- ORDER
+    rental_length --- ORDER
+    total_cost --- ORDER
+
+    %% ORDER_ADD_ON attributes
+    order_add_on_id(("<u>order_add_on_id</u>"))
+    quantity((quantity))
+
+    order_add_on_id --- ORDER_ADD_ON
+    quantity --- ORDER_ADD_ON
+
+    %% POST attributes
+    post_id(("<u>post_id</u>"))
+    comment((comment))
+    timestamp((timestamp))
+
+    post_id --- POST
+    comment --- POST
+    timestamp --- POST
+```
+
+## Notes
+
+- `VEHICLE` is the app's current `Restaurant` model.
+- `ADD_ON` is the app's current `Item` model.
+- `ORDER_ADD_ON` stores selected add-ons and their quantities for each order.

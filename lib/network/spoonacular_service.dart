@@ -29,7 +29,7 @@ class SpoonacularService implements RecipeServiceInterface {
     RecipeSearchRequest request,
   ) async {
     if (_apiKey.trim().isEmpty) {
-      return QueryResult.failure(
+      return const QueryResult.failure(
         QueryError(
           type: QueryErrorType.configuration,
           message: 'Missing Spoonacular API key.',
@@ -39,8 +39,8 @@ class SpoonacularService implements RecipeServiceInterface {
 
     final sanitizedQuery = request.query.trim();
     if (sanitizedQuery.isEmpty) {
-      return QueryResult.success(
-        const SpoonacularModelResponse(results: [], totalResults: 0),
+      return const QueryResult.success(
+        SpoonacularModelResponse(results: [], totalResults: 0),
       );
     }
 
@@ -68,8 +68,8 @@ class SpoonacularService implements RecipeServiceInterface {
 
       final decoded = jsonDecode(response.body);
       if (decoded is! Map<String, dynamic>) {
-        return QueryResult.failure(
-          const QueryError(
+        return const QueryResult.failure(
+          QueryError(
             type: QueryErrorType.parsing,
             message: 'Unexpected response format.',
           ),
@@ -79,36 +79,36 @@ class SpoonacularService implements RecipeServiceInterface {
       final parsed = SpoonacularModelResponse.fromJson(decoded);
       return QueryResult.success(parsed);
     } on TimeoutException {
-      return QueryResult.failure(
-        const QueryError(
+      return const QueryResult.failure(
+        QueryError(
           type: QueryErrorType.network,
           message: 'Request timed out. Please try again.',
         ),
       );
     } on SocketException {
-      return QueryResult.failure(
-        const QueryError(
+      return const QueryResult.failure(
+        QueryError(
           type: QueryErrorType.network,
           message: 'No internet connection.',
         ),
       );
     } on FormatException {
-      return QueryResult.failure(
-        const QueryError(
+      return const QueryResult.failure(
+        QueryError(
           type: QueryErrorType.parsing,
           message: 'Unable to parse Spoonacular response.',
         ),
       );
     } on http.ClientException {
-      return QueryResult.failure(
-        const QueryError(
+      return const QueryResult.failure(
+        QueryError(
           type: QueryErrorType.network,
           message: 'HTTP client error.',
         ),
       );
     } catch (_) {
-      return QueryResult.failure(
-        const QueryError(
+      return const QueryResult.failure(
+        QueryError(
           type: QueryErrorType.unknown,
           message: 'Unexpected error while fetching recipes.',
         ),

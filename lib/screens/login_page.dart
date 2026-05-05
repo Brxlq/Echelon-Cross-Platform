@@ -7,15 +7,22 @@ class Credentials {
 }
 
 class LoginPage extends StatelessWidget {
-  const LoginPage({required this.onLogIn, super.key});
+  const LoginPage({
+    required this.onLogIn,
+    required this.onSignUp,
+    super.key,
+  });
 
-  final ValueChanged<Credentials> onLogIn;
+  final Future<void> Function(Credentials credentials) onLogIn;
+  final Future<void> Function(Credentials credentials) onSignUp;
 
   @override
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width > 960;
+    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: DecoratedBox(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -45,21 +52,31 @@ class LoginPage extends StatelessWidget {
                               child: ConstrainedBox(
                                 constraints:
                                     const BoxConstraints(maxWidth: 460),
-                                child: LoginForm(onLogIn: onLogIn),
+                                child: LoginForm(
+                                  onLogIn: onLogIn,
+                                  onSignUp: onSignUp,
+                                ),
                               ),
                             ),
                           ),
                         ],
                       )
                     : SingleChildScrollView(
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
                         child: Column(
                           children: [
-                            const _WelcomePanel(compact: true),
-                            const SizedBox(height: 20),
-                            LoginForm(onLogIn: onLogIn),
+                            if (!keyboardOpen) ...[
+                              const _WelcomePanel(compact: true),
+                              const SizedBox(height: 20),
+                            ],
+                            LoginForm(
+                              onLogIn: onLogIn,
+                              onSignUp: onSignUp,
+                            ),
                           ],
                         ),
-                      ),
+              ),
               ),
             ),
           ),
@@ -242,9 +259,14 @@ class _HeroStat extends StatelessWidget {
 }
 
 class LoginForm extends StatefulWidget {
-  const LoginForm({required this.onLogIn, super.key});
+  const LoginForm({
+    required this.onLogIn,
+    required this.onSignUp,
+    super.key,
+  });
 
-  final ValueChanged<Credentials> onLogIn;
+  final Future<void> Function(Credentials credentials) onLogIn;
+  final Future<void> Function(Credentials credentials) onSignUp;
 
   @override
   State<LoginForm> createState() => _LoginFormState();
@@ -253,6 +275,8 @@ class LoginForm extends StatefulWidget {
 class _LoginFormState extends State<LoginForm> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _submitting = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -261,109 +285,161 @@ class _LoginFormState extends State<LoginForm> {
     super.dispose();
   }
 
-  void _submit() {
-    widget.onLogIn(
-      Credentials(
-        _usernameController.text.trim(),
-        _passwordController.text,
-      ),
-    );
+  Future<void> _submitLogin() async {
+    await _submit(widget.onLogIn);
+  }
+
+  Future<void> _submitSignUp() async {
+    await _submit(widget.onSignUp);
+  }
+
+  Future<void> _submit(
+    Future<void> Function(Credentials credentials) action,
+  ) async {
+    setState(() {
+      _submitting = true;
+      _errorMessage = null;
+    });
+    try {
+      await action(
+        Credentials(
+          _usernameController.text.trim(),
+          _passwordController.text,
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 24,
-            offset: Offset(0, 14),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Sign in to continue',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Any username and passcode will open the demo, so you can focus '
-            'on exploring the product experience.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 24),
-          TextField(
-            controller: _usernameController,
-            textInputAction: TextInputAction.next,
-            decoration: InputDecoration(
-              labelText: 'Username or email',
-              prefixIcon: const Icon(Icons.person_outline),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x14000000),
+                blurRadius: 24,
+                offset: Offset(0, 14),
               ),
-            ),
+            ],
           ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _passwordController,
-            obscureText: true,
-            onSubmitted: (_) => _submit(),
-            decoration: InputDecoration(
-              labelText: 'Passcode',
-              prefixIcon: const Icon(Icons.lock_outline),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _submit,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-              ),
-              child: const Text('Enter Echelon'),
-            ),
-          ),
-          const SizedBox(height: 18),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              color: Theme.of(context).colorScheme.surfaceContainerLow,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.favorite_outline,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    'Friendly reminder: the demo accepts any credentials.',
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Sign in to continue',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    'Use your real account credentials to sign in, or create a new '
+                    'account from this screen.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 24),
+                  TextField(
+                    controller: _usernameController,
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: 'Email',
+                      prefixIcon: const Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    onSubmitted: (_) => _submitLogin(),
+                    decoration: InputDecoration(
+                      labelText: 'Passcode',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _submitting ? null : _submitLogin,
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
+                      child: _submitting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Sign In'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: _submitting ? null : _submitSignUp,
+                      child: const Text('Create Account'),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _errorMessage == null
+                              ? Icons.lock_outline
+                              : Icons.error_outline,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _errorMessage ??
+                                'Authentication is now connected to Firebase.',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

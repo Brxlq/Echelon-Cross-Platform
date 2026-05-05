@@ -65,6 +65,9 @@ class _HomeState extends State<Home> {
           if (!context.mounted) return;
           context.go('/login');
         },
+        onOpenSupportChat: () {
+          context.go('/${widget.tab}/support-chat');
+        },
         user: User(
           firstName: 'Yerkebulan',
           lastName: 'Sovet',

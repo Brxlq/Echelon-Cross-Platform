@@ -1,8 +1,11 @@
 import 'dart:ui';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'firebase_options.dart';
 import '../models/models.dart';
 import '../screens/screens.dart';
 import 'constants.dart';
@@ -10,6 +13,7 @@ import 'home.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await _initializeFirebase();
   final appCache = AppCache();
   final cachedThemeMode = await appCache.getThemeMode();
   final cachedColorSelection = await appCache.getColorSelection();
@@ -34,6 +38,16 @@ Future<void> main() async {
       initialOrders: savedOrders,
     ),
   );
+}
+
+Future<void> _initializeFirebase() async {
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (_) {
+    // Firebase is optional during local development until configured.
+  }
 }
 
 class CustomScrollBehavior extends MaterialScrollBehavior {
@@ -105,7 +119,20 @@ class _EchelonAppState extends State<EchelonApp> {
         path: '/login',
         builder: (context, state) => LoginPage(
           onLogIn: (Credentials credentials) async {
-            await _auth.signIn(credentials.username, credentials.password);
+            try {
+              await _auth.signIn(credentials.username, credentials.password);
+            } on FirebaseAuthException catch (e) {
+              throw Exception(_friendlyAuthError(e));
+            }
+            if (!context.mounted) return;
+            context.go('/$lastSelectedTab');
+          },
+          onSignUp: (Credentials credentials) async {
+            try {
+              await _auth.signUp(credentials.username, credentials.password);
+            } on FirebaseAuthException catch (e) {
+              throw Exception(_friendlyAuthError(e));
+            }
             if (!context.mounted) return;
             context.go('/$lastSelectedTab');
           },
@@ -139,6 +166,10 @@ class _EchelonAppState extends State<EchelonApp> {
                 ordersManager: _orderManager,
               );
             },
+          ),
+          GoRoute(
+            path: 'support-chat',
+            builder: (context, state) => const SupportChatPage(),
           ),
         ],
       ),
@@ -226,6 +257,25 @@ class _EchelonAppState extends State<EchelonApp> {
         ),
       ),
     );
+  }
+}
+
+String _friendlyAuthError(FirebaseAuthException e) {
+  switch (e.code) {
+    case 'invalid-email':
+      return 'Please enter a valid email address.';
+    case 'user-not-found':
+      return 'No account found for this email.';
+    case 'wrong-password':
+      return 'Incorrect password.';
+    case 'email-already-in-use':
+      return 'This email is already registered.';
+    case 'weak-password':
+      return 'Password is too weak. Use at least 6 characters.';
+    case 'invalid-credential':
+      return 'Email or password is invalid.';
+    default:
+      return e.message ?? 'Authentication failed. Please try again.';
   }
 }
 

@@ -356,15 +356,15 @@ class _FleetFinderSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Fleet Finder Assistant',
+                  'CarQuery API Assistant',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Search live vehicle makes to plan future fleet additions '
-                  'and member requests.',
+                  'Search live vehicle makes via CarQuery to plan fleet '
+                  'additions and member requests.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 12),
