@@ -10,6 +10,21 @@ class PostCard extends StatelessWidget {
 
   final Post post;
 
+  ImageProvider<Object> _avatarImage() {
+    if (post.profileImageUrl.startsWith('http://') ||
+        post.profileImageUrl.startsWith('https://')) {
+      return NetworkImage(post.profileImageUrl);
+    }
+    return AssetImage(post.profileImageUrl);
+  }
+
+  String _timeLabel() {
+    if (post.timestamp == '0') {
+      return 'Just now';
+    }
+    return '${post.timestamp} min ago';
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context)
@@ -25,7 +40,7 @@ class PostCard extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 25,
-              backgroundImage: AssetImage(post.profileImageUrl),
+              backgroundImage: _avatarImage(),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -40,7 +55,7 @@ class PostCard extends StatelessWidget {
                     style: textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
-                  Text('${post.timestamp} min ago', style: textTheme.bodySmall),
+                  Text(_timeLabel(), style: textTheme.bodySmall),
                 ],
               ),
             ),

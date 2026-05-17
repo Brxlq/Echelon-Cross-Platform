@@ -127,31 +127,37 @@ class _EchelonAppState extends State<EchelonApp> {
     routes: [
       GoRoute(
         path: '/login',
-        builder: (context, state) => LoginPage(
-          onLogIn: (Credentials credentials) async {
-            try {
-              await _auth.signIn(credentials.username, credentials.password);
-            } on FirebaseAuthException catch (e) {
-              throw Exception(_friendlyAuthError(e));
-            }
-            if (!context.mounted) return;
-            context.go('/$lastSelectedTab');
-          },
-          onSignUp: (Credentials credentials) async {
-            try {
-              await _auth.signUp(credentials.username, credentials.password);
-            } on FirebaseAuthException catch (e) {
-              throw Exception(_friendlyAuthError(e));
-            }
-            if (!context.mounted) return;
-            context.go('/$lastSelectedTab');
-          },
+        pageBuilder: (context, state) => _fadeTransitionPage(
+          state: state,
+          child: LoginPage(
+            onLogIn: (Credentials credentials) async {
+              try {
+                await _auth.signIn(credentials.username, credentials.password);
+                await _orderManager.syncFromCloudIfAvailable();
+              } on FirebaseAuthException catch (e) {
+                throw Exception(_friendlyAuthError(e));
+              }
+              if (!context.mounted) return;
+              context.go('/$lastSelectedTab');
+            },
+            onSignUp: (Credentials credentials) async {
+              try {
+                await _auth.signUp(credentials.username, credentials.password);
+                await _orderManager.syncFromCloudIfAvailable();
+              } on FirebaseAuthException catch (e) {
+                throw Exception(_friendlyAuthError(e));
+              }
+              if (!context.mounted) return;
+              context.go('/$lastSelectedTab');
+            },
+          ),
         ),
       ),
       GoRoute(
         path: '/:tab',
-        builder: (context, state) {
-          return Home(
+        pageBuilder: (context, state) => _slideTransitionPage(
+          state: state,
+          child: Home(
             auth: _auth,
             cartManager: _cartManager,
             ordersManager: _orderManager,
@@ -161,26 +167,35 @@ class _EchelonAppState extends State<EchelonApp> {
             colorSelected: colorSelected,
             onTabSelected: updateLastTab,
             tab: int.tryParse(state.pathParameters['tab'] ?? '') ?? 0,
-          );
-        },
+          ),
+        ),
         routes: [
           GoRoute(
             path: 'vehicle/:id',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final restaurant = _findVehicleById(state.pathParameters['id']);
               if (restaurant == null) {
-                return const _VehicleNotFoundPage();
+                return _fadeTransitionPage(
+                  state: state,
+                  child: const _VehicleNotFoundPage(),
+                );
               }
-              return RestaurantPage(
-                restaurant: restaurant,
-                cartManager: _cartManager,
-                ordersManager: _orderManager,
+              return _slideTransitionPage(
+                state: state,
+                child: RestaurantPage(
+                  restaurant: restaurant,
+                  cartManager: _cartManager,
+                  ordersManager: _orderManager,
+                ),
               );
             },
           ),
           GoRoute(
             path: 'support-chat',
-            builder: (context, state) => const SupportChatPage(),
+            pageBuilder: (context, state) => _slideTransitionPage(
+              state: state,
+              child: const SupportChatPage(),
+            ),
           ),
         ],
       ),
@@ -190,6 +205,52 @@ class _EchelonAppState extends State<EchelonApp> {
       child: const _VehicleNotFoundPage(),
     ),
   );
+
+  CustomTransitionPage<void> _fadeTransitionPage({
+    required GoRouterState state,
+    required Widget child,
+  }) {
+    return CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 350),
+      reverseTransitionDuration: const Duration(milliseconds: 250),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final curve = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(opacity: curve, child: child);
+      },
+    );
+  }
+
+  CustomTransitionPage<void> _slideTransitionPage({
+    required GoRouterState state,
+    required Widget child,
+  }) {
+    return CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 420),
+      reverseTransitionDuration: const Duration(milliseconds: 300),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final slideCurve = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0.07, 0),
+            end: Offset.zero,
+          ).animate(slideCurve),
+          child: FadeTransition(opacity: slideCurve, child: child),
+        );
+      },
+    );
+  }
 
   Future<String?> _appRedirect(
     BuildContext context,

@@ -23,6 +23,7 @@ class RestaurantLandscapeCard extends StatefulWidget {
 
 class _RestaurantLandscapeCardState extends State<RestaurantLandscapeCard> {
   String get _heroTag => 'vehicle-image-${widget.restaurant.id}';
+  bool _favouritePressed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -72,19 +73,47 @@ class _RestaurantLandscapeCardState extends State<RestaurantLandscapeCard> {
                     right: 12,
                     child: CircleAvatar(
                       backgroundColor: Colors.white.withValues(alpha: 0.92),
-                      child: IconButton(
-                        icon: Icon(
-                          widget.isFavourite
-                              ? Icons.favorite
-                              : Icons.favorite_border,
+                      child: GestureDetector(
+                        onTapDown: (_) {
+                          if (widget.onFavouriteToggle != null) {
+                            setState(() {
+                              _favouritePressed = true;
+                            });
+                          }
+                        },
+                        onTapUp: (_) {
+                          setState(() {
+                            _favouritePressed = false;
+                          });
+                        },
+                        onTapCancel: () {
+                          setState(() {
+                            _favouritePressed = false;
+                          });
+                        },
+                        child: AnimatedScale(
+                          duration: const Duration(milliseconds: 140),
+                          curve: Curves.easeOutBack,
+                          scale: _favouritePressed ? 0.88 : 1,
+                          child: IconButton(
+                            icon: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 180),
+                              child: Icon(
+                                widget.isFavourite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                key: ValueKey<bool>(widget.isFavourite),
+                              ),
+                            ),
+                            iconSize: 20,
+                            color: Colors.red[400],
+                            onPressed: widget.onFavouriteToggle == null
+                                ? null
+                                : () {
+                                    widget.onFavouriteToggle!();
+                                  },
+                          ),
                         ),
-                        iconSize: 20,
-                        color: Colors.red[400],
-                        onPressed: widget.onFavouriteToggle == null
-                            ? null
-                            : () {
-                                widget.onFavouriteToggle!();
-                              },
                       ),
                     ),
                   ),

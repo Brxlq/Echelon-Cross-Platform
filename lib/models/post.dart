@@ -3,13 +3,15 @@ class Post {
     this.id,
     this.profileImageUrl,
     this.comment,
-    this.timestamp,
-  );
+    this.timestamp, {
+    this.createdAtEpochMs,
+  });
 
   String id;
   String profileImageUrl;
   String comment;
   String timestamp;
+  int? createdAtEpochMs;
 
   factory Post.fromJson(Map<String, dynamic> json) {
     return Post(
@@ -17,6 +19,7 @@ class Post {
       json['profileImageUrl'] as String? ?? '',
       json['comment'] as String? ?? '',
       json['timestamp'] as String? ?? '0',
+      createdAtEpochMs: json['createdAtEpochMs'] as int?,
     );
   }
 
@@ -25,6 +28,7 @@ class Post {
         'profileImageUrl': profileImageUrl,
         'comment': comment,
         'timestamp': timestamp,
+        'createdAtEpochMs': createdAtEpochMs,
       };
 }
 

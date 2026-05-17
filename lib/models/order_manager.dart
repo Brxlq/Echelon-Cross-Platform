@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -73,7 +75,7 @@ class Order {
   }
 
   double get addOnTotal {
-    return items.fold<double>(0, (sum, item) => sum + item.totalCost);
+    return items.fold<double>(0, (total, item) => total + item.totalCost);
   }
 
   double get rentalCost => baseRate * rentalLength;
@@ -192,9 +194,43 @@ class OrderManager {
   }
 
   static const _ordersKey = 'echelon_orders';
+  static const _cloudCollection = 'order_history';
+  static const _maxCloudOrders = 200;
   final List<Order> _orders = [];
 
   static Future<List<Order>> loadSavedOrders() async {
+    final cloudOrders = await _tryLoadCloudOrders();
+    if (cloudOrders != null) {
+      return cloudOrders;
+    }
+    return _loadLocalOrders();
+  }
+
+  static Future<List<Order>?> _tryLoadCloudOrders() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        return null;
+      }
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection(_cloudCollection)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => doc.data()['order'])
+          .whereType<Map>()
+          .map((entry) => Order.fromJson(Map<String, dynamic>.from(entry)))
+          .toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<List<Order>> _loadLocalOrders() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_ordersKey);
@@ -211,10 +247,61 @@ class OrderManager {
     }
   }
 
-  Future<void> _persistOrders() async {
+  Future<void> _persistOrders({bool persistCloud = true}) async {
     final prefs = await SharedPreferences.getInstance();
     final encoded = jsonEncode(_orders.map((order) => order.toJson()).toList());
     await prefs.setString(_ordersKey, encoded);
+    if (persistCloud) {
+      await _tryPersistCloudOrders();
+    }
+  }
+
+  Future<void> _tryPersistCloudOrders() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        return;
+      }
+
+      final ordersCollection = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection(_cloudCollection);
+
+      final existingDocs = await ordersCollection.get();
+      final batch = FirebaseFirestore.instance.batch();
+
+      for (final doc in existingDocs.docs) {
+        batch.delete(doc.reference);
+      }
+
+      final start = _orders.length > _maxCloudOrders
+          ? _orders.length - _maxCloudOrders
+          : 0;
+      for (final order in _orders.skip(start)) {
+        final docRef = ordersCollection.doc();
+        batch.set(docRef, {
+          'order': order.toJson(),
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      await batch.commit();
+    } catch (_) {
+      // Keep local persistence as primary fallback when cloud sync fails.
+    }
+  }
+
+  Future<void> syncFromCloudIfAvailable() async {
+    final cloudOrders = await _tryLoadCloudOrders();
+    if (cloudOrders == null) {
+      return;
+    }
+
+    _orders
+      ..clear()
+      ..addAll(cloudOrders);
+    await _persistOrders(persistCloud: false);
   }
 
   List<Order> get orders => _orders;

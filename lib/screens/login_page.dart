@@ -283,6 +283,7 @@ class _LoginFormState extends State<LoginForm> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _submitting = false;
+  bool _ctaPressed = false;
   String? _errorMessage;
 
   @override
@@ -346,111 +347,139 @@ class _LoginFormState extends State<LoginForm> {
           ),
           child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Sign in to continue',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Use your real account credentials to sign in, or create '
-                    'a new '
-                    'account from this screen.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 24),
-                  TextField(
-                    key: LoginForm.emailFieldKey,
-                    controller: _usernameController,
-                    textInputAction: TextInputAction.next,
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: const Icon(Icons.person_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sign in to continue',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
                       ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Use your real account credentials to sign in, or create '
+                  'a new '
+                  'account from this screen.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 24),
+                TextField(
+                  key: LoginForm.emailFieldKey,
+                  controller: _usernameController,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    key: LoginForm.passwordFieldKey,
-                    controller: _passwordController,
-                    obscureText: true,
-                    onSubmitted: (_) => _submitLogin(),
-                    decoration: InputDecoration(
-                      labelText: 'Passcode',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  key: LoginForm.passwordFieldKey,
+                  controller: _passwordController,
+                  obscureText: true,
+                  onSubmitted: (_) => _submitLogin(),
+                  decoration: InputDecoration(
+                    labelText: 'Passcode',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      key: LoginForm.signInButtonKey,
-                      onPressed: _submitting ? null : _submitLogin,
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                      child: _submitting
-                          ? const SizedBox(
-                              key: LoginForm.loadingIndicatorKey,
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Sign In'),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      key: LoginForm.createAccountButtonKey,
-                      onPressed: _submitting ? null : _submitSignUp,
-                      child: const Text('Create Account'),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Container(
-                    key: LoginForm.messagePanelKey,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
-                      color: Theme.of(context).colorScheme.surfaceContainerLow,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _errorMessage == null
-                              ? Icons.lock_outline
-                              : Icons.error_outline,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            _errorMessage ??
-                                'Authentication is now connected to Firebase.',
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: GestureDetector(
+                    onTapDown: (_) {
+                      if (!_submitting) {
+                        setState(() {
+                          _ctaPressed = true;
+                        });
+                      }
+                    },
+                    onTapUp: (_) {
+                      setState(() {
+                        _ctaPressed = false;
+                      });
+                    },
+                    onTapCancel: () {
+                      setState(() {
+                        _ctaPressed = false;
+                      });
+                    },
+                    child: AnimatedScale(
+                      duration: const Duration(milliseconds: 140),
+                      curve: Curves.easeOutCubic,
+                      scale: _ctaPressed ? 0.97 : 1,
+                      child: FilledButton(
+                        key: LoginForm.signInButtonKey,
+                        onPressed: _submitting ? null : _submitLogin,
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
                           ),
                         ),
-                      ],
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 220),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          child: _submitting
+                              ? const SizedBox(
+                                  key: LoginForm.loadingIndicatorKey,
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text('Sign In'),
+                        ),
+                      ),
                     ),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    key: LoginForm.createAccountButtonKey,
+                    onPressed: _submitting ? null : _submitSignUp,
+                    child: const Text('Create Account'),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  key: LoginForm.messagePanelKey,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _errorMessage == null
+                            ? Icons.lock_outline
+                            : Icons.error_outline,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _errorMessage ??
+                              'Authentication is now connected to Firebase.',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         );

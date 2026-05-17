@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:go_router/go_router.dart';
+import 'package:lottie/lottie.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api/mock_yummy_service.dart';
@@ -10,6 +12,7 @@ import '../learn/recipes/recipe_search_history_stream.dart';
 import '../learn/vehicle/vehicle_discovery_manager.dart';
 import '../models/models.dart';
 import '../network/vehicle_catalog_service.dart';
+import '../social/member_moments_repository.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({
@@ -42,6 +45,8 @@ class _ExplorePageState extends State<ExplorePage>
   late final Future<ExploreData> _exploreDataFuture;
   late final TabController _tabController;
   late final VehicleDiscoveryManager _vehicleDiscoveryManager;
+  late final MemberMomentsManager _memberMomentsManager;
+  bool _momentsLoaded = false;
   String searchQuery = '';
   String quickFilter = 'all';
 
@@ -55,6 +60,8 @@ class _ExplorePageState extends State<ExplorePage>
       historyStream: RecipeSearchHistoryStream(),
     );
     _vehicleDiscoveryManager.loadCatalog();
+    _memberMomentsManager = MemberMomentsManager();
+    _memberMomentsManager.addListener(_onMomentsChanged);
   }
 
   @override
@@ -63,7 +70,15 @@ class _ExplorePageState extends State<ExplorePage>
     _recipeQueryController.dispose();
     _tabController.dispose();
     _vehicleDiscoveryManager.dispose();
+    _memberMomentsManager.removeListener(_onMomentsChanged);
+    _memberMomentsManager.dispose();
     super.dispose();
+  }
+
+  void _onMomentsChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   bool _matchesQuery(Restaurant restaurant, String query) {
@@ -208,8 +223,11 @@ class _ExplorePageState extends State<ExplorePage>
   Widget _buildExploreBody(
     BuildContext context,
     List<Restaurant> allRestaurants,
-    List<Post> posts,
+    List<Post> seedPosts,
   ) {
+    final posts = _memberMomentsManager.posts.isEmpty
+        ? seedPosts
+        : _memberMomentsManager.posts;
     return NestedScrollView(
       headerSliverBuilder: (context, innerBoxIsScrolled) {
         return [
@@ -278,21 +296,40 @@ class _ExplorePageState extends State<ExplorePage>
 
           return ListView(
             key: PageStorageKey<String>('fleet-$category'),
+            primary: false,
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             children: [
-              RestaurantSection(
-                restaurants: restaurants,
-                cartManager: widget.cartManager,
-                orderManager: widget.orderManager,
-                selectedCategory: category,
-                favouriteManager: widget.favouriteManager,
+              _ScaleInOnAppear(
+                child: RestaurantSection(
+                  restaurants: restaurants,
+                  cartManager: widget.cartManager,
+                  orderManager: widget.orderManager,
+                  selectedCategory: category,
+                  favouriteManager: widget.favouriteManager,
+                ),
               ),
               const SizedBox(height: 20),
-              PostSection(posts: posts),
+              _SlideInOnAppear(
+                delayMs: 80,
+                child: PostSection(
+                  posts: posts,
+                  submitting: _memberMomentsManager.submitting,
+                  error: _memberMomentsManager.error,
+                  onAddComment: (comment) {
+                    return _memberMomentsManager.addComment(
+                      comment: comment,
+                      profileImageUrl: 'assets/profile_pics/person_kevin.jpeg',
+                    );
+                  },
+                ),
+              ),
               const SizedBox(height: 20),
-              _FleetFinderSection(
-                manager: _vehicleDiscoveryManager,
-                queryController: _recipeQueryController,
+              _SlideInOnAppear(
+                delayMs: 150,
+                child: _FleetFinderSection(
+                  manager: _vehicleDiscoveryManager,
+                  queryController: _recipeQueryController,
+                ),
               ),
             ],
           );
@@ -307,13 +344,20 @@ class _ExplorePageState extends State<ExplorePage>
       future: _exploreDataFuture,
       builder: (context, AsyncSnapshot<ExploreData> snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
+          return const _LottieLoadingView(
+            message: 'Loading your fleet dashboard...',
+          );
         }
 
         final allRestaurants = snapshot.data?.restaurants ?? [];
-        final posts = snapshot.data?.friendPosts ?? [];
+        final seedPosts = snapshot.data?.friendPosts ?? [];
 
-        return _buildExploreBody(context, allRestaurants, posts);
+        if (!_momentsLoaded) {
+          _momentsLoaded = true;
+          _memberMomentsManager.load(seedPosts);
+        }
+
+        return _buildExploreBody(context, allRestaurants, seedPosts);
       },
     );
   }
@@ -417,7 +461,11 @@ class _FleetFinderSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 if (manager.isLoading)
-                  const Center(child: CircularProgressIndicator())
+                  const _LottieLoadingView(
+                    message: 'Searching live vehicle makes...',
+                    size: 120,
+                    centered: false,
+                  )
                 else if (manager.error != null)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -441,60 +489,64 @@ class _FleetFinderSection extends StatelessWidget {
                           const SizedBox(width: 12),
                       itemBuilder: (context, index) {
                         final make = manager.makes[index];
-                        return SizedBox(
-                          width: 200,
-                          child: Card(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(10),
-                                  child: Text(
-                                    make.name,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style:
-                                        Theme.of(context).textTheme.titleSmall,
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    10,
-                                    0,
-                                    10,
-                                    10,
-                                  ),
-                                  child: Text(
-                                    'Catalog ID: ${make.id}',
-                                    style:
-                                        Theme.of(context).textTheme.bodySmall,
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    10,
-                                    0,
-                                    10,
-                                    10,
-                                  ),
-                                  child: InkWell(
-                                    onTap: () => _openSourceLink(make.name),
+                        return _SlideInOnAppear(
+                          delayMs: 45 * index,
+                          child: SizedBox(
+                            width: 200,
+                            child: Card(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(10),
                                     child: Text(
-                                      'Open source link',
+                                      make.name,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                       style: Theme.of(context)
                                           .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .primary,
-                                            decoration:
-                                                TextDecoration.underline,
-                                          ),
+                                          .titleSmall,
                                     ),
                                   ),
-                                ),
-                              ],
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      10,
+                                      0,
+                                      10,
+                                      10,
+                                    ),
+                                    child: Text(
+                                      'Catalog ID: ${make.id}',
+                                      style:
+                                          Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      10,
+                                      0,
+                                      10,
+                                      10,
+                                    ),
+                                    child: InkWell(
+                                      onTap: () => _openSourceLink(make.name),
+                                      child: Text(
+                                        'Open source link',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                              decoration:
+                                                  TextDecoration.underline,
+                                            ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         );
@@ -510,54 +562,223 @@ class _FleetFinderSection extends StatelessWidget {
   }
 }
 
+class _LottieLoadingView extends StatelessWidget {
+  const _LottieLoadingView({
+    required this.message,
+    this.size = 180,
+    this.centered = true,
+  });
+
+  final String message;
+  final double size;
+  final bool centered;
+
+  @override
+  Widget build(BuildContext context) {
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: size,
+          height: size,
+          child: kIsWeb
+              ? const Center(child: CircularProgressIndicator())
+              : Lottie.asset(
+                  'assets/animations/loading-car.json',
+                  repeat: true,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(child: CircularProgressIndicator());
+                  },
+                ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          message,
+          style: Theme.of(context).textTheme.bodyMedium,
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+
+    if (centered) {
+      return Center(child: content);
+    }
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: content,
+    );
+  }
+}
+
+class _ScaleInOnAppear extends StatefulWidget {
+  const _ScaleInOnAppear({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_ScaleInOnAppear> createState() => _ScaleInOnAppearState();
+}
+
+class _ScaleInOnAppearState extends State<_ScaleInOnAppear> {
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _visible = true;
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedScale(
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutBack,
+      scale: _visible ? 1 : 0.97,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 260),
+        opacity: _visible ? 1 : 0,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+class _SlideInOnAppear extends StatefulWidget {
+  const _SlideInOnAppear({
+    required this.child,
+    this.delayMs = 0,
+  });
+
+  final Widget child;
+  final int delayMs;
+
+  @override
+  State<_SlideInOnAppear> createState() => _SlideInOnAppearState();
+}
+
+class _SlideInOnAppearState extends State<_SlideInOnAppear> {
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.delayed(Duration(milliseconds: widget.delayMs), () {
+      if (mounted) {
+        setState(() {
+          _visible = true;
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final offset = _visible ? Offset.zero : const Offset(0.08, 0);
+    return AnimatedSlide(
+      duration: const Duration(milliseconds: 330),
+      curve: Curves.easeOutCubic,
+      offset: offset,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 240),
+        opacity: _visible ? 1 : 0,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
 class _DiscoverHero extends StatelessWidget {
   const _DiscoverHero();
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0B1220), Color(0xFF123B72)],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Pick a class, search in seconds, and unlock a car fast.',
-            style: textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxHeight < 230;
+        return Container(
+          padding: EdgeInsets.all(isCompact ? 16 : 24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(32),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF0B1220), Color(0xFF123B72)],
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Echelon keeps every Astana-ready vehicle in one clean flow, '
-            'from fleet browsing to booking and return planning.',
-            style: textTheme.bodyLarge?.copyWith(
-              color: Colors.white.withValues(alpha: 0.8),
-              height: 1.4,
-            ),
-          ),
-          const Spacer(),
-          const Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _MetricCard(value: '3 min', label: 'average unlock time'),
-              _MetricCard(value: '20', label: 'cars across the fleet'),
-              _MetricCard(value: '24/7', label: 'support available'),
-            ],
-          ),
-        ],
-      ),
+          child: isCompact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Pick a class and unlock a car fast.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.titleLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '3 min unlock time • 20 cars • 24/7 support',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.82),
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pick a class, search in seconds, and unlock a car fast.',
+                      style: textTheme.headlineSmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Echelon keeps every Astana-ready vehicle '
+                      'in one clean flow, '
+                      'from fleet browsing to booking and return planning.',
+                      style: textTheme.bodyLarge?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        height: 1.4,
+                      ),
+                    ),
+                    const Spacer(),
+                    const Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        _MetricCard(
+                          value: '3 min',
+                          label: 'average unlock time',
+                        ),
+                        _MetricCard(
+                          value: '20',
+                          label: 'cars across the fleet',
+                        ),
+                        _MetricCard(value: '24/7', label: 'support available'),
+                      ],
+                    ),
+                  ],
+                ),
+        );
+      },
     );
   }
 }

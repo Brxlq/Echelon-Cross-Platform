@@ -64,6 +64,7 @@ class SupportChatView extends StatefulWidget {
 
 class _SupportChatViewState extends State<SupportChatView> {
   final TextEditingController _controller = TextEditingController();
+  bool _sendPressed = false;
 
   SupportChatManager get _manager => widget.manager;
 
@@ -96,12 +97,23 @@ class _SupportChatViewState extends State<SupportChatView> {
                     itemCount: messages.length,
                     itemBuilder: (context, index) {
                       final message = messages[index];
-                      return Card(
-                        child: ListTile(
-                          title: Text(message.senderLabel),
-                          subtitle: Text(message.text),
-                          trailing: Text(
-                            DateFormat('HH:mm').format(message.createdAt),
+                      return TweenAnimationBuilder<double>(
+                        duration: Duration(milliseconds: 180 + (index * 35)),
+                        curve: Curves.easeOutCubic,
+                        tween: Tween<double>(begin: 0, end: 1),
+                        builder: (context, value, child) {
+                          return Transform.translate(
+                            offset: Offset(16 * (1 - value), 0),
+                            child: Opacity(opacity: value, child: child),
+                          );
+                        },
+                        child: Card(
+                          child: ListTile(
+                            title: Text(message.senderLabel),
+                            subtitle: Text(message.text),
+                            trailing: Text(
+                              DateFormat('HH:mm').format(message.createdAt),
+                            ),
                           ),
                         ),
                       );
@@ -139,21 +151,44 @@ class _SupportChatViewState extends State<SupportChatView> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    IconButton(
-                      key: SupportChatView.sendButtonKey,
-                      onPressed: _manager.sending
-                          ? null
-                          : () => _submit(_controller.text),
-                      icon: _manager.sending
-                          ? const SizedBox(
-                              key: SupportChatView.loadingIndicatorKey,
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(Icons.send),
+                    GestureDetector(
+                      onTapDown: (_) {
+                        if (!_manager.sending) {
+                          setState(() {
+                            _sendPressed = true;
+                          });
+                        }
+                      },
+                      onTapUp: (_) {
+                        setState(() {
+                          _sendPressed = false;
+                        });
+                      },
+                      onTapCancel: () {
+                        setState(() {
+                          _sendPressed = false;
+                        });
+                      },
+                      child: AnimatedScale(
+                        duration: const Duration(milliseconds: 120),
+                        scale: _sendPressed ? 0.92 : 1,
+                        child: IconButton(
+                          key: SupportChatView.sendButtonKey,
+                          onPressed: _manager.sending
+                              ? null
+                              : () => _submit(_controller.text),
+                          icon: _manager.sending
+                              ? const SizedBox(
+                                  key: SupportChatView.loadingIndicatorKey,
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.send),
+                        ),
+                      ),
                     ),
                   ],
                 ),
