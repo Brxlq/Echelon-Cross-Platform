@@ -1,71 +1,129 @@
-# Cross-platform-mobile-development
+# Echelon
 
-## Echelon
+Echelon is a premium Flutter car-sharing demo app built to showcase modern mobile UI, deep linking, URL routing, and cloud-backed state.
 
-Echelon is a Flutter car-sharing application with fleet discovery, booking, trip management, and a profile area. The app was redesigned around real vehicle browsing, Astana pickup hubs, and a more polished rental flow.
+The project combines a polished fleet discovery experience with booking flows, user profiles, in-app support chat, favorites, and both local and Firebase-backed persistence.
 
-## Implemented Flutter Features
+---
 
-1. `SearchAnchor` + `SearchBar`
-   Link: https://api.flutter.dev/flutter/material/SearchAnchor-class.html
-   Use in the app: lets the user search cars by model, class, or Astana location, and shows live search suggestions with real car images.
+## App Overview
 
-2. `SliverAppBar`
-   Link: https://api.flutter.dev/flutter/material/SliverAppBar-class.html
-   Use in the app: creates the large collapsible header on the Discover page, making the fleet screen feel more modern and premium.
+Echelon is designed as a high-quality vehicle rental experience with the following capabilities:
 
-3. `TabBar`
-   Link: https://api.flutter.dev/flutter/material/TabBar-class.html
-   Use in the app: shows the car classes as tabs: `Economy`, `Comfort`, `Premium`, and `Electric`.
+- Fleet discovery with filter chips, categories, and search suggestions
+- Tabbed car classes for Economy, Comfort, Premium, and Electric vehicles
+- Vehicle detail pages with hero animations, add-on selection, and booking controls
+- Booking and reservation flow using draggable bottom sheets and modal panels
+- User authentication with Firebase Auth
+- Favorites syncing through Firestore or an in-memory fallback repository
+- Local caching for theme mode, color selection, and last active tab
+- Support chat and fallback handling for unavailable vehicles
+- Deep link routing using `go_router`
 
-4. `TabBarView`
-   Link: https://api.flutter.dev/flutter/material/TabBarView-class.html
-   Use in the app: lets the user swipe or switch between the different car-class pages while keeping the content organized.
+---
 
-5. `TabController`
-   Link: https://api.flutter.dev/flutter/material/TabController-class.html
-   Use in the app: controls the active tab and lets search results automatically switch to the correct car class.
+## Key Features
 
-6. `NestedScrollView`
-   Link: https://api.flutter.dev/flutter/widgets/NestedScrollView-class.html
-   Use in the app: combines the collapsible header and tabbed content into one smooth scrolling experience on the Discover page.
+- `go_router` route-based navigation with nested routes and readable URLs
+- Firebase integration for auth, Firestore favorites, and optional storage support
+- Local persistence using `shared_preferences` and `drift` / `sqlite3_flutter_libs`
+- Responsive Material 3 UI with custom theme seed and adaptive dark mode
+- Animated transitions, hero effects, and a smooth mobile-first booking interface
+- Offline-capable demo mode via `InMemoryFavouriteVehicleRepository`
+- Modern input patterns: `SearchAnchor`, `SearchBar`, `FilterChip`, `SegmentedButton`
 
-7. `DraggableScrollableSheet`
-   Link: https://api.flutter.dev/flutter/widgets/DraggableScrollableSheet-class.html
-   Use in the app: turns the booking panel into a draggable sheet that slides up from the bottom, so renting a car feels like a real mobile app flow.
+---
 
-8. `showModalBottomSheet`
-   Link: https://api.flutter.dev/flutter/material/showModalBottomSheet.html
-   Use in the app: opens the booking interface and add-on details from the bottom of the screen instead of navigating to a separate page.
+## Tech Stack
 
-9. `Hero`
-   Link: https://api.flutter.dev/flutter/widgets/Hero-class.html
-   Use in the app: animates the car image smoothly from the fleet card into the car detail page.
+- Flutter SDK `>=3.0.5 <4.0.0`
+- `go_router` for declarative routing and deep-link support
+- `firebase_core`, `firebase_auth`, `cloud_firestore`, `firebase_storage`
+- `shared_preferences` for simple local settings and state caching
+- `drift` + `sqlite3_flutter_libs` for local database storage
+- `http` for network calls and API fallback handling
+- `url_launcher` for external URI intents and web URL actions
+- `image_picker` and `lottie` for richer media experiences
 
-10. `Dismissible`
-    Link: https://api.flutter.dev/flutter/widgets/Dismissible-class.html
-    Use in the app: allows the user to swipe a reservation or add-on to remove it.
+---
 
-11. `SnackBar`
-    Link: https://api.flutter.dev/flutter/material/SnackBar-class.html
-    Use in the app: shows feedback after actions like cancelling a reservation, and gives an `Undo` option.
+## Routes and Deep Links
 
-12. `FilterChip`
-    Link: https://api.flutter.dev/flutter/material/FilterChip-class.html
-    Use in the app: lets the user quickly filter cars such as `Budget picks`, `Top rated`, or `Near center`.
+The app uses route-based navigation, including nested paths that match vehicle detail and support screens.
 
-13. `SegmentedButton`
-    Link: https://api.flutter.dev/flutter/material/SegmentedButton-class.html
-    Use in the app: used in booking so the user can switch between `Round Trip / One Way` and `Hours / Days`.
+Example routes:
 
-14. `showDatePicker`
-    Link: https://api.flutter.dev/flutter/material/showDatePicker.html
-    Use in the app: lets the user choose the pickup date for renting a car.
+- `/login` — authentication screen
+- `/:tab` — home tab view for Discover, Favorites, Orders, Profile, etc.
+- `/:tab/vehicle/:id` — deep link into a specific vehicle detail page
+- `/:tab/support-chat` — support chat screen
 
-15. `showTimePicker`
-    Link: https://api.flutter.dev/flutter/material/showTimePicker.html
-    Use in the app: lets the user choose the pickup time for the reservation.
+This routing design enables clean link handling, easy sharable URLs, and predictable navigation.
 
-16. `CustomScrollView`
-    Link: https://api.flutter.dev/flutter/widgets/CustomScrollView-class.html
-    Use in the app: used on the car details page to combine the image header, vehicle info, and optional add-ons in one scrollable layout.
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Flutter SDK installed
+- Android Studio, Xcode, or web/browser tooling configured for Flutter
+- Optional: Firebase project configured for Android / iOS / web
+
+### Install dependencies
+
+```bash
+flutter pub get
+```
+
+### Run the app
+
+```bash
+flutter run
+```
+
+### Run tests
+
+```bash
+flutter test
+```
+
+---
+
+## Firebase Support
+
+Firebase is initialized in `lib/main.dart` and is optional during local development. If Firebase is not configured, the app still starts with a caching fallback.
+
+To enable Firebase fully:
+
+1. Add your Firebase config files for Android (`google-services.json`) and iOS (`GoogleService-Info.plist`)
+2. Ensure `firebase_options.dart` is generated for your project
+3. Run the app again
+
+---
+
+## Project Structure
+
+- `lib/main.dart` — app entry point and router setup
+- `lib/home.dart` — main home shell with tabs and shared app state
+- `lib/screens/` — page screens for vehicles, profile, orders, chat, and login
+- `lib/components/` — reusable UI widgets and cards
+- `lib/favourites/` — favorites repository, manager, and models
+- `lib/local/` — local database and cache helpers
+- `lib/network/` — remote API helpers and vehicle catalog service
+- `lib/models/` — shared data models across the app
+- `assets/` — images, animations, categories, and mock data
+
+---
+
+## Notes
+
+- This project is structured as a cross-platform Flutter app with Android, iOS, and web support.
+- The app is a demo and uses both real Firebase connections and local fallback logic for easier development.
+- The UI emphasizes a premium fleet rental experience with polished animations and material design patterns.
+
+---
+
+## 📝 License
+
+This repository is intended as a personal demo project. Use and adapt it freely for learning and portfolio purposes.
